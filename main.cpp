@@ -4,17 +4,10 @@
 #include <QCommandLineParser>
 #include <iostream>
 #include <QString>
+#include <QTranslator>
 
-//process the RC file and extract strings
-//QString: append to an empty string
-//IndexOf - left/right/size
-//Split
-//toLower
-//Mid : like left and right, except it says start at this location and give me this many characters
-//Prepend: opposite of append
-//replace
 
-void rcFile(const QString& inputFile, QString& headerFile, QString& translationFile, bool appendOutput, bool silentMode, bool verboseMode)
+void rcFile(QString& inputFile, QString& headerFile, QString& translationFile, bool appendOutput, bool silentMode, bool verboseMode)
 
 {
     QFile input(inputFile);
@@ -29,9 +22,12 @@ void rcFile(const QString& inputFile, QString& headerFile, QString& translationF
     QFile header(headerFile);
     QTextStream headerStream(&header);
 
-    if (!header.open(appendOutput ? QIODevice::Append | QIODevice::Text : QIODevice::WriteOnly | QIODevice::Text))
+    if (header.open(QIODevice::Append | QIODevice::ReadWrite))
     {
-        std::cerr << "Cannot open or create header file." << std::endl;
+        if (!header.open(QIODevice::Append | QIODevice::ReadWrite))
+        {
+            std::cerr << "Cannot open or create header file." << std::endl;
+        }
         input.close();
         return;
     }
@@ -40,22 +36,32 @@ void rcFile(const QString& inputFile, QString& headerFile, QString& translationF
     QFile translation(translationFile);
     QTextStream translationStream(&translation);
 
-    if (!translation.open(appendOutput ? QIODevice::Append | QIODevice::Text : QIODevice::WriteOnly | QIODevice::Text))
+    if (translation.open(QIODevice::Append | QIODevice::ReadWrite))
     {
+        if (!translation.open(QIODevice::Append | QIODevice::ReadWrite))
+        {
         std::cerr << "Cannot open or create translation file." << std::endl;
+        }
         input.close();
         header.close();
         return;
     }
 
 
+    bool readStringTable;
+
     while (!inputStream.atEnd()) {
         QString line = inputStream.readLine().trimmed();
 
         if (line.startsWith("STRINGTABLE")) {
-            if (verboseMode)
-                std::cout << "STRINGTABLE" << std::endl;
 
+            readStringTable = true;
+            continue;
+        }
+
+        if (readStringTable) {
+
+            std::cout << "String Table: " << line;
         }
 
         if (line == "BEGIN") {
@@ -78,17 +84,19 @@ void rcFile(const QString& inputFile, QString& headerFile, QString& translationF
 
             identifier.replace('_', '-');
 
-        if (identifier.startsWith("ids")) {
-                identifier.replace(0, 3, "str_id")
+        if (identifier.startsWith("ids"))
+            {
+                identifier.replace(0, 3, "str_id");
 
-                else if (identifier.startsWith("id(x)")) {
-                identifier.replace(0, 5, "str_id_x" )
+                    else if (identifier.startsWith("id(x)"))
+                    identifier.replace(0, 5, "str_id_x" )
 
-                else if (identifier.startsWith("afx")) {
-                identifier.replace(0, 3, "str_id_o" )
+
+                    else if (identifier.startsWith("afx"))
+                    identifier.replace(0, 3, "str_id_o" )
                         };
-                };
-        };
+
+
 
     input.close();
     header.close();
@@ -102,15 +110,18 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
 
     QCoreApplication::setApplicationName("extractstrings");
+    QCoreApplication::setApplicationVersion("1.0");
 
     QCommandLineParser parser;
     parser.setApplicationDescription("Extract Strings from an RC file");
+    //parser.addHelpOption();
+    //parser.addVersionOption();
 
 
     QCommandLineOption inputFileOption(QStringList() << "i" << "input", "Input file name", "filename");
     parser.addOption(inputFileOption);
 
-    QCommandLineOption headerFileOption(QStringList() << "h" << "header", "Header file name", "headerfilename");
+    QCommandLineOption headerFileOption(QStringList() << "header" << "header", "Header file name", "headerfilename");
     parser.addOption(headerFileOption);
 
     QCommandLineOption translationFileOption(QStringList() << "t" << "translation", "Translation file name", "translationfilename");
@@ -122,12 +133,12 @@ int main(int argc, char *argv[]) {
     QCommandLineOption silentModeOption(QStringList() << "s" << "silent", "Run in silent mode");
     parser.addOption(silentModeOption);
 
-    QCommandLineOption verboseModeOption(QStringList() << "v" << "verbose", "Run in verbose mode");
+    QCommandLineOption verboseModeOption(QStringList() << "verbose" << "verbose", "Run in verbose mode");
     parser.addOption(verboseModeOption);
 
     parser.process(app);
 
-    const QString inputFile = parser.value(inputFileOption);
+    QString inputFile = parser.value(inputFileOption);
     QString headerFile = parser.value(headerFileOption);
     QString translationFile = parser.value(translationFileOption);
     bool appendOutput = parser.isSet(appendOutputOption);
